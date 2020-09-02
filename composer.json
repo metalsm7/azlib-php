@@ -1,0 +1,27 @@
+{
+  "name": "metalsm7/azlib",
+  "description": "Custom Data Library",
+  "homepage": "https://github.com/metalsm7/azlib-php",
+  "license": "MIT",
+  "type": "library",
+  "keywords": [
+    "AZLib",
+    "AZData",
+    "AZList",
+    "AZSql"
+  ],
+  "authors": [
+    {
+      "name": "yonghun lee",
+      "homepage": "https://github.com/metalsm7"
+    }
+  ],
+  "require": {
+    "php": ">=7.0.3"
+  },
+  "autoload": {
+    "psr-4": {
+      "metalsm7\\AZLib\\": "src/"
+    }
+  }
+}
