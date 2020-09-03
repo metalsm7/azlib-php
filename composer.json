@@ -1,7 +1,7 @@
 {
   "name": "metalsm7/azlib-php",
   "description": "Custom Data Library",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "homepage": "https://github.com/metalsm7/azlib-php",
   "license": "MIT",
   "type": "library",
@@ -22,7 +22,7 @@
   },
   "autoload": {
     "psr-4": {
-      "AZLib\\": "src/"
+      "": "src/"
     }
   }
 }
