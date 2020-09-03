@@ -1,6 +1,6 @@
 <?php
-namespace metalsm7\AZLib;
-use metalsm7\AZLib\{AZData, AZList};
+namespace AZLib;
+use AZLib\{AZData, AZList};
 class AZSql {
   // protected $CI;
   private $_db;

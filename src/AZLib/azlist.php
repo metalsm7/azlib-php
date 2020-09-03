@@ -1,6 +1,6 @@
 <?php
-namespace metalsm7\AZLib;
-use metalsm7\AZLib\{AZData};
+namespace AZLib;
+use AZLib\{AZData};
 class AZList implements \Iterator {
   // protected $CI;
   private $_key = 0;
