@@ -47,6 +47,9 @@ class AZData implements \Iterator {
     return new AZData($json);
   }
 
+  /**
+   * get, remove method에 대한 오버로딩 처리
+   */
   public function __call($name, $args) {
     switch ($name) {
       case 'get':
@@ -112,14 +115,27 @@ class AZData implements \Iterator {
     // return isset($this->_data[$key]);
   }
 
+  /**
+   * 현재 가지고 있는 전체 키 목록을 배열로 반환
+   * @return array
+   */
   public function keys() {
     return array_keys($this->_data);
   }
 
+  /**
+   * 지정된 index에 위치한 자료의 key 반환
+   * @return string
+   */
   public function get_key($idx): string {
     return array_keys($this->_data)[$idx];
   }
 
+  /**
+   * index값 기준 자료 반환
+   * @param $idx index값
+   * @return mixed
+   */
   protected function get_by_index($idx) {
     $cnt = count($this->_data);
     // echo "__get_by_index - idx:".$idx." / cnt:$cnt / key:".$this->_keys[$idx]."<br />";
@@ -129,6 +145,11 @@ class AZData implements \Iterator {
     return $this->_data[$this->_keys[$idx]];
   }
 
+  /**
+   * key값 기준 자료 반환
+   * @param string $key key값
+   * @return mixed
+   */
   protected function get_by_key(string $key) {
     // echo "__get_by_index - key:".$key."<br />";
     if (!$this->has_key($key)) {
@@ -137,6 +158,12 @@ class AZData implements \Iterator {
     return $this->_data[$key];
   }
 
+  /**
+   * 자료 추가
+   * @param string $key 키값
+   * @param mixed $value
+   * @return AZData
+   */
   public function add(string $key, $value) {
     if (is_null($this->_data)) {
       $this->_data = array();
@@ -144,12 +171,6 @@ class AZData implements \Iterator {
     }
     $this->_data[$key] = $value;
     array_push($this->_keys, $key);
-    return $this;
-  }
-
-  protected function remove_by_key(string $key) {
-    $this->_data[$key] = null;
-    unset($this->_data[$key]);
     return $this;
   }
 
@@ -162,6 +183,12 @@ class AZData implements \Iterator {
       $this->_data[$key] = null;
       unset($this->_data[$key]);
     }
+    return $this;
+  }
+
+  protected function remove_by_key(string $key) {
+    $this->_data[$key] = null;
+    unset($this->_data[$key]);
     return $this;
   }
 

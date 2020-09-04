@@ -114,8 +114,12 @@ class AZSql {
 
   protected function execute(string $query, bool $identity = false): int {
     $rtn_val = 0;
-    $this->_db->simple_query($query);
+    // $this->_db->simple_query($query);
+    $q_result = $this->_db->query($query);
     $rtn_val = $identity ? $this->_db->insert_id() : $this->_db->affected_rows();
+    //
+    $q_result->free_result();
+    $this->free_results($q_result);
     return $rtn_val;
   }
 
@@ -129,10 +133,14 @@ class AZSql {
     }
     //
     $rtn_val = -1;
-    $q_result = $this->_db->simple_query($query);
+    // $q_result = $this->_db->simple_query($query);
+    $q_result = $this->_db->query($query);
     if ($q_result) {
       $rtn_val = $identity ? $this->_db->insert_id() : $this->_db->affected_rows();
     }
+    //
+    $q_result->free_result();
+    $this->free_results($q_result);
     return $rtn_val;
   }
 
@@ -155,6 +163,7 @@ class AZSql {
     unset($type_cast);
     //
     $q_result->free_result();
+    $this->free_results($q_result);
     //
     return $rtn_val;
   }
@@ -187,6 +196,7 @@ class AZSql {
     unset($type_cast);
     //
     $q_result->free_result();
+    $this->free_results($q_result);
     //
     return $rtn_val;
   }
@@ -200,6 +210,7 @@ class AZSql {
   protected function get_data(string $query, $type_cast = false): AZData {
     // echo "get_data.query:".$query."\n";
     $q_result = $this->_db->query($query);
+    //echo "error:".json_encode($this->_db->error())."<br />";
     $data = $q_result->row_array();
     // echo "\nget_data.data.PRE:".json_encode($data)."\n";
     if ($type_cast) {
@@ -211,6 +222,7 @@ class AZSql {
     //
     unset($type_cast);
     //
+    $this->free_results($q_result);
     $q_result->free_result();
     // echo "get_data.data.POST:".json_encode($data)."\n";
     // return AZData::parse($this->_db->query($query)->row_array());
@@ -234,7 +246,6 @@ class AZSql {
     foreach ($params as $key => $value) {
       $query = $this->param_replacer($query, $key, $value);
     }
-    // echo "with_params - query:".$query."\n";
     //
     $q_result = $this->_db->query($query);
     $data = $q_result->row_array();
@@ -246,7 +257,8 @@ class AZSql {
     //
     unset($params);
     unset($type_cast);
-    //
+    // echo "T:".mysqli_more_results($q_result->conn_id)."<br />";
+    $this->free_results($q_result);
     $q_result->free_result();
     //
     // return AZData::parse($this->_db->query($query)->row_array());
@@ -261,6 +273,7 @@ class AZSql {
     $rtn_val = new AZList();
     //
     $q_result = $this->_db->query($query);
+    //
     $list = $q_result->result_array();
     $field = null;
     if ($type_cast) {
@@ -276,6 +289,7 @@ class AZSql {
     unset($field);
     unset($type_cast);
     //
+    $this->free_results($q_result);
     $q_result->free_result();
     return $rtn_val;
   }
@@ -293,6 +307,7 @@ class AZSql {
     }
     //
     $q_result = $this->_db->query($query);
+    //
     $list = $q_result->result_array();
     $field = null;
     if ($type_cast) {
@@ -309,8 +324,17 @@ class AZSql {
     unset($params);
     unset($type_cast);
     //
+    $this->free_results($q_result);
     $q_result->free_result();
     //
     return $rtn_val;
+  }
+
+  private function free_results(&$results) {
+    while(mysqli_more_results($results->conn_id) && mysqli_next_result($results->conn_id)) {
+      if($l_result = mysqli_store_result($results->conn_id)) {
+        mysqli_free_result($l_result);
+      }
+    }
   }
 }
