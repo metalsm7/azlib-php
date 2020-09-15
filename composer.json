@@ -1,7 +1,7 @@
 {
   "name": "metalsm7/azlib-php",
   "description": "Custom Data Library",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "homepage": "https://github.com/metalsm7/azlib-php",
   "license": "MIT",
   "type": "library",

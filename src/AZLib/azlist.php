@@ -1,7 +1,7 @@
 <?php
 namespace AZLib;
 use AZLib\{AZData};
-class AZList implements \Iterator {
+class AZList implements \Iterator, \JsonSerializable {
   // protected $CI;
   private $_key = 0;
   private $_data = array();
@@ -112,5 +112,9 @@ class AZList implements \Iterator {
 
   public function to_json_string(): string {
     return json_encode($this->to_json());
+  }
+
+  public function jsonSerialize(): string {
+    return $this->to_json_string();
   }
 }

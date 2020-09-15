@@ -1,7 +1,8 @@
 <?php
 namespace AZLib;
 use AZLib\{AZList};
-class AZData implements \Iterator {
+
+class AZData implements \Iterator, \JsonSerializable, \ArrayAccess {
   // protected $CI;
   private $_key = 0;
   private $_keys = null;
@@ -10,7 +11,6 @@ class AZData implements \Iterator {
     // $this->CI =& get_instance();
     //
     if (!is_null($json)) {
-      // echo "__const - type:".gettype($json)."\n";
       $type = gettype($json);
       switch ($type) {
         case 'string':
@@ -78,10 +78,37 @@ class AZData implements \Iterator {
       break;
     }
   }
+
+  // ArrayAccess 구현용
+  public function offsetExists($offset) {
+    switch (gettype($offset)) {
+      case 'tinyint':
+      case 'smallint':
+      case 'mediumint':
+      case 'integer':
+      case 'bigint':
+        return $offset > -1 && $offset < count($this->_data);
+    }
+    return $this->has_key($offset);
+  }
+
+  // ArrayAccess 구현용
+  public function offsetGet($offset) {
+    return $this->get($offset);
+  }
+
+  // ArrayAccess 구현용
+  public function offsetSet($offset, $value) {
+    $this->set($offset, $value);
+  }
+
+  // ArrayAccess 구현용
+  public function offsetUnset($offset) {
+    $this->remove($offset);
+  }
     
   // iterator 구현용
   public function current() {
-    // echo "__current - _key:".$this->_key.":".$this->get($this->_key)."<br />";
     return $this->get($this->_key);
   }
 
@@ -138,7 +165,6 @@ class AZData implements \Iterator {
    */
   protected function get_by_index($idx) {
     $cnt = count($this->_data);
-    // echo "__get_by_index - idx:".$idx." / cnt:$cnt / key:".$this->_keys[$idx]."<br />";
     if ($idx < 0 || $idx >= $cnt) {
       return null;
     }
@@ -151,11 +177,14 @@ class AZData implements \Iterator {
    * @return mixed
    */
   protected function get_by_key(string $key) {
-    // echo "__get_by_index - key:".$key."<br />";
     if (!$this->has_key($key)) {
       return null;
     }
     return $this->_data[$key];
+  }
+
+  public function size() {
+    return count($this->_keys);
   }
 
   /**
@@ -174,6 +203,24 @@ class AZData implements \Iterator {
     return $this;
   }
 
+  public function set(string $key, $value) {
+    if (!is_null($this->_data)) {
+      if (!$this->has_key($key)) {
+        $this->add($key, $value);
+      }
+      else {
+        $this->_data[$key] = $value;
+      }
+    }
+    return $this;
+  }
+
+  protected function remove_by_key(string $key) {
+    $this->_data[$key] = null;
+    unset($this->_data[$key]);
+    return $this;
+  }
+
   protected function remove_by_index($idx) {
     if ($idx > -1 && $idx < count($this->_data)) {
       $key = $this->_keys[$idx];
@@ -183,12 +230,6 @@ class AZData implements \Iterator {
       $this->_data[$key] = null;
       unset($this->_data[$key]);
     }
-    return $this;
-  }
-
-  protected function remove_by_key(string $key) {
-    $this->_data[$key] = null;
-    unset($this->_data[$key]);
     return $this;
   }
 
@@ -202,7 +243,6 @@ class AZData implements \Iterator {
     foreach ($properties as $property) {
       $name = $property->getName();
       if ($this->has_key($name) && !$property->isStatic()) {
-        // echo "convert - name:".$name." / value:".$this->get($name)." / isStatic:".$property->isStatic()."\n";
         $property->setAccessible(true);
         $property->setValue($model, $this->get($name));
         $property->setAccessible(false);
@@ -222,7 +262,6 @@ class AZData implements \Iterator {
         if ($rtn_val[$keys[$i]] instanceof AZData) {
           $rtn_val[$keys[$i]] = $rtn_val[$keys[$i]]->to_json();
         } elseif ($rtn_val[$keys[$i]] instanceof AZList) {
-          // echo "\nto_json - key:{$keys[$i]} - {$rtn_val[$keys[$i]]->to_json()}\n";
           $rtn_val[$keys[$i]] = $rtn_val[$keys[$i]]->to_json();
         }
       }
@@ -232,5 +271,9 @@ class AZData implements \Iterator {
 
   public function to_json_string(): string {
     return json_encode($this->to_json());
+  }
+
+  public function jsonSerialize(): string {
+    return $this->to_json_string();
   }
 }
