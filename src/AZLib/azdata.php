@@ -1,4 +1,7 @@
 <?php
+/**
+ * @file
+ */
 namespace AZLib;
 use AZLib\{AZList};
 
@@ -164,6 +167,7 @@ class AZData implements \Iterator, \JsonSerializable, \ArrayAccess {
    * @return mixed
    */
   protected function get_by_index($idx) {
+    if (is_null($this->_data)) return null;
     $cnt = count($this->_data);
     if ($idx < 0 || $idx >= $cnt) {
       return null;

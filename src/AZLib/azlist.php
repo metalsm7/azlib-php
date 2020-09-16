@@ -1,4 +1,7 @@
 <?php
+/**
+ * @file
+ */
 namespace AZLib;
 use AZLib\{AZData};
 class AZList implements \Iterator, \JsonSerializable {
