@@ -20,6 +20,7 @@ namespace AZLib {
     private $_action_tran_on_rollback;
     private $_is_stored_procedure = false;
     private $_is_prepared = false;
+    private $_is_prepared_close_on_complete = true; // prepared statement 사용 후 statement close 처리 여부
     private $_statement; // prepared statement 사용시 prepare() 결과 객체 저장용
     //
     public function __construct(&$db = null) {
@@ -237,6 +238,9 @@ namespace AZLib {
           break;
         case 'add_return_parameter':
           if (count($args) == 1) array_push($args, null);
+          return call_user_func_array(array($this, $name), $args);
+        case 'set_prepared':
+          if (count($args) == 1) array_push($args, true);
           return call_user_func_array(array($this, $name), $args);
       }
     }
@@ -519,9 +523,10 @@ namespace AZLib {
      * @param $state boolean
      * @return AZSql
      */
-    public function set_prepared($state) {
+    protected function set_prepared($state, $close_on_complete = true) {
       //
       $this->_is_prepared = $state;
+      $this->_is_prepared_close_on_complete = $close_on_complete;
       //
       $this->_compiled_query = null;
       //
@@ -673,7 +678,10 @@ namespace AZLib {
           }
           //
           $this->_statement->free_result();
-          // $this->_statement->close();
+          if ($this->_is_prepared_close_on_complete) { // prepared statement 사용 후 statement close 처리
+            $this->_statement->close();
+            $this->_statement = null;
+          }
         }
       }
       else {
@@ -721,19 +729,11 @@ namespace AZLib {
       return $this->execute($identity);
     }
 
-    /**
-     * 쿼리에 대한 단일 결과값 반환.
-     * @param $type_cast boolean = false 필드 정보를 바탕으로 반환값 타입 캐스팅 처리
-     * @return mixed
-     */
     protected function get($type_cast = false) {
       //
       return $this->get_data($type_cast)->get(0);
     }
 
-    /**
-     * get() overload
-     */
     protected function get_with_query(string $query, $type_cast = false) {
       //
       $this->set_query($query);
@@ -742,9 +742,6 @@ namespace AZLib {
       return $this->get($type_cast);
     }
 
-    /**
-     * get() overload
-     */
     protected function get_with_params(string $query, $params, $type_cast = false) {
       //
       $this->set_query($query);
@@ -753,11 +750,6 @@ namespace AZLib {
       return $this->get($type_cast);
     }
 
-    /**
-     * 쿼리 단일행 결과값 반환
-     * @param $type_cast boolean = false 필드 정보를 바탕으로 반환값 타입 캐스팅 처리
-     * @return AZData
-     */
     protected function get_data($type_cast = false): AZData {
       //
       $rtn_val = AZData::create();
@@ -814,7 +806,10 @@ namespace AZLib {
           }
           //
           $this->_statement->free_result();
-          // $this->_statement->close();
+          if ($this->_is_prepared_close_on_complete) { // prepared statement 사용 후 statement close 처리
+            $this->_statement->close();
+            $this->_statement = null;
+          }
         }
       }
       else {
@@ -917,7 +912,6 @@ namespace AZLib {
 
     /**
      * 지정된 쿼리 문자열에 대한 다행 결과를 AZList 객체로 반환
-     * @return AZList
      */
     protected function get_list($type_cast = false): AZList {
       $rtn_val = AZList::create();
@@ -977,7 +971,10 @@ namespace AZLib {
           }
           //
           $this->_statement->free_result();
-          // $this->_statement->close();
+          if ($this->_is_prepared_close_on_complete) { // prepared statement 사용 후 statement close 처리
+            $this->_statement->close();
+            $this->_statement = null;
+          }
         }
       }
       else {
@@ -1054,9 +1051,6 @@ namespace AZLib {
       return $rtn_val;
     }
     
-    /**
-     * get_list() overload
-     */
     protected function get_list_with_query(string $query, $type_cast = false): AZList {
       //
       $this->set_query($query);
@@ -1065,9 +1059,6 @@ namespace AZLib {
       return $this->get_list($type_cast);
     }
 
-    /**
-     * get_list() overload
-     */
     protected function get_list_with_params(string $query, $params, $type_cast = false): AZList {
       //
       $this->set_query($query);
@@ -1076,11 +1067,6 @@ namespace AZLib {
       return $this->get_list($type_cast);
     }
 
-    /**
-     * 여러건의 쿼리를 한번에 실행한 경우,
-     * 혹은 단일 stored procedure에서 여러건의 쿼리 실행이 있는 경우 각 건의 결값을 AZList[] 형식으로 반환.
-     * @return array
-     */
     protected function get_multi($type_cast = false): array {
       //
       $rtn_val = array();
@@ -1141,7 +1127,10 @@ namespace AZLib {
           }
           //
           $this->_statement->free_result();
-          // $this->_statement->close();
+          if ($this->_is_prepared_close_on_complete) { // prepared statement 사용 후 statement close 처리
+            $this->_statement->close();
+            $this->_statement = null;
+          }
         }
       }
       else {
@@ -1225,9 +1214,6 @@ namespace AZLib {
       return $rtn_val;
     }
     
-    /**
-     * get_multi() overload
-     */
     protected function get_multi_with_query(string $query, $type_cast = false): array {
       //
       $this->set_query($query);
@@ -1236,9 +1222,6 @@ namespace AZLib {
       return $this->get_multi($type_cast);
     }
 
-    /**
-     * get_multi() overload
-     */
     protected function get_multi_with_params(string $query, $params, $type_cast = false): array {
       //
       $this->set_query($query);
