@@ -7,6 +7,19 @@ require_once __DIR__.'/../src/AZLib/azlist.php';
 require_once __DIR__.'/../src/AZLib/azsql.php';
 use AZLib\{AZData, AZList, AZSql};
 
+$bql = AZSql\BQuery::create('table')
+  ->set('k1', 1)
+  ->set('k2', 'str')
+  ->set('reg_date', 'NOW()', AZSql\VALUETYPE::QUERY)
+  ->where('k2', '%test%', AZSql\WHERETYPE::LIKE)
+  ->where('k3', [10, 30], AZSql\WHERETYPE::BETWEEN);
+$res = $bql->compile(AZSql\CREATE_QUERY_TYPE::UPDATE);
+echo "query:".$res['query'].PHP_EOL;
+
+$res = $bql->set_prepared(true)->compile(AZSql\CREATE_QUERY_TYPE::UPDATE);
+echo "query:".$res['query'].PHP_EOL;
+echo "parameters:".json_encode($res['parameters']).PHP_EOL;
+
 $query = <<<QUERY
 SELECT
   @season as season, @site_key as site_key

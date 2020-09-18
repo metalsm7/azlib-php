@@ -1401,7 +1401,7 @@ namespace AZLib\AZSql {
               // prepared statement 사용시
               if (is_null($params)) $params = AZData::create();
               //
-              $key = "@__set_{$idx}_{$set->_column}";
+              $key = '@'.(str_replace('.', '___', $set->_column)).'_set_'.($idx + 1);
               $params->add($key, $set->_value);
               $val_str .= PHP_EOL.($idx > 0 ? ' ,' : ' ').$key;
             }
@@ -1428,7 +1428,8 @@ namespace AZLib\AZSql {
                 // prepared statement 사용시
                 if (is_null($params)) $params = AZData::create();
                 //
-                $key = "@__set_{$idx}_{$set->_column}";
+                // $key = "@__set_{$idx}_{$set->_column}";
+                $key = '@'.(str_replace('.', '___', $set->_column)).'_set_'.($idx + 1);
                 $params->add($key, $set->_value);
                 $query .= ($idx > 0 ? ',' : '').PHP_EOL." {$set->_column} = $key";
               }
@@ -1501,14 +1502,17 @@ namespace AZLib\AZSql {
                 //
                 switch ($val_cnt) {
                   case 1:
-                    $key = "@__where_{$idx}_{$where->_column}";
+                    //$key = "@__where_{$idx}_{$where->_column}";
+                    $key = '@'.(str_replace('.', '___', $where->_column)).'_where_'.($idx + 1);
                     $params->add($key, $where->_value);
                     $query .= $key;
                     break;
                   case 2:
                     $keys = array(
-                      "@__where_{$idx}_{$where->_column}_btw_1",
-                      "@__where_{$idx}_{$where->_column}_btw_2"
+                      // "@__where_{$idx}_{$where->_column}_btw_1",
+                      // "@__where_{$idx}_{$where->_column}_btw_2"
+                      '@'.(str_replace('.', '___', $where->_column)).'_where_'.($idx + 1).'_between_1',
+                      '@'.(str_replace('.', '___', $where->_column)).'_where_'.($idx + 1).'_between_2'
                     );
                     $params
                       ->add($keys[0], $where->_value[0])
@@ -1520,7 +1524,8 @@ namespace AZLib\AZSql {
                     $jdx = 0;
                     foreach ($where->_value as $val) {
                       //
-                      $key = "@__where_{$idx}_{$where->_column}_in_$jdx";
+                      // $key = "@__where_{$idx}_{$where->_column}_in_$jdx";
+                      $key = '@'.(str_replace('.', '___', $where->_column)).'_where_'.($idx + 1).'_in_'.($jdx + 1);
                       $params->add($key, $val);
                       //
                       $query .= ($jdx > 0 ? ',' : '').$key;
