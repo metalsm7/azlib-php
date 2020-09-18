@@ -12,7 +12,9 @@ $bql = AZSql\BQuery::create('table')
   ->set('k2', 'str')
   ->set('reg_date', 'NOW()', AZSql\VALUETYPE::QUERY)
   ->where('k2', '%test%', AZSql\WHERETYPE::LIKE)
-  ->where('k3', [10, 30], AZSql\WHERETYPE::BETWEEN);
+  ->where('k3', [10, 30], AZSql\WHERETYPE::BETWEEN)
+  ->where('k4', ['ab', 'cd', '가나', '다라', 11], AZSql\WHERETYPE::IN)
+  ->where('k5', 31823);
 $res = $bql->compile(AZSql\CREATE_QUERY_TYPE::UPDATE);
 echo "query:".$res['query'].PHP_EOL;
 

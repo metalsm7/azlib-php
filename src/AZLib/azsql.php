@@ -595,8 +595,8 @@ namespace AZLib {
       //
       $this->_is_transaction = true;
       //
-      if ($on_commit) $this->_action_tran_on_commit = $on_commit;
-      if ($on_rollback) $this->_action_tran_on_rollback = $on_rollback;
+      if (isset($on_commit) && is_callable($on_commit)) $this->_action_tran_on_commit = $on_commit;
+      if (isset($on_rollback) && is_callable($on_rollback)) $this->_action_tran_on_rollback = $on_rollback;
     }
 
     /**
@@ -615,11 +615,11 @@ namespace AZLib {
         $this->get_mysqli()->autocommit(true);
       }
       //
-      if ($is_success && $_action_tran_on_commit) {
-        $_action_tran_on_commit();
+      if ($is_success && isset($this->_action_tran_on_commit) && is_callable($this->_action_tran_on_commit)) {
+        call_user_func($this->_action_tran_on_commit);
       }
-      else if (!$is_success && $_action_tran_on_rollback) {
-        $_action_tran_on_commit();
+      else if (!$is_success && isset($this->_action_tran_on_rollback) && is_callable($this->_action_tran_on_rollback)) {
+        call_user_func($this->_action_tran_on_rollback);
       }
     }
 
