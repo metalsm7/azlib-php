@@ -8,19 +8,30 @@ require_once __DIR__.'/../src/AZLib/azsql.php';
 use AZLib\{AZData, AZList, AZSql};
 
 $bql = AZSql\BQuery::create('table')
+  ->set_prepared(true)
   ->set('k1', 1)
   ->set('k2', 'str')
   ->set('reg_date', 'NOW()', AZSql\VALUETYPE::QUERY)
   ->where('k2', '%test%', AZSql\WHERETYPE::LIKE)
   ->where('k3', [10, 30], AZSql\WHERETYPE::BETWEEN)
   ->where('k4', ['ab', 'cd', '가나', '다라', 11], AZSql\WHERETYPE::IN)
-  ->where('k5', 31823);
-$res = $bql->compile(AZSql\CREATE_QUERY_TYPE::UPDATE);
-echo "query:".$res['query'].PHP_EOL;
+  ->where('k5', 31823)
+  ->where(AZSql\COr::create()
+    ->add('k6', 1)
+    ->add('k6', 2)
+    ->add(
+      AZSql\CAnd::create()
+        ->add('k71', 'type1')
+        ->add('k72', 'type1')
+    )
+  );
+// $res = $bql->compile(AZSql\CREATE_QUERY_TYPE::UPDATE);
+// echo "query:".$res['query'].PHP_EOL;
 
-$res = $bql->set_prepared(true)->compile(AZSql\CREATE_QUERY_TYPE::UPDATE);
+$res = $bql->set_prepared(false)->compile(AZSql\CREATE_QUERY_TYPE::UPDATE);
 echo "query:".$res['query'].PHP_EOL;
 echo "parameters:".json_encode($res['parameters']).PHP_EOL;
+return;
 
 $query = <<<QUERY
 SELECT

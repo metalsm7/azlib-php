@@ -20,8 +20,8 @@ namespace AZLib {
     private $_action_tran_on_rollback;
     private $_is_stored_procedure = false;
     private $_is_prepared = false;
-    private $_is_prepared_close_on_complete = true; // prepared statement 사용 후 statement close 처리 여부
     private $_statement; // prepared statement 사용시 prepare() 결과 객체 저장용
+    private $_statement_close_on_complete = true; // prepared statement 사용시 결과값 요청 후 close 처리 여부
     //
     public function __construct(&$db = null) {
       //
@@ -238,9 +238,6 @@ namespace AZLib {
           break;
         case 'add_return_parameter':
           if (count($args) == 1) array_push($args, null);
-          return call_user_func_array(array($this, $name), $args);
-        case 'set_prepared':
-          if (count($args) == 1) array_push($args, true);
           return call_user_func_array(array($this, $name), $args);
       }
     }
@@ -521,12 +518,13 @@ namespace AZLib {
     /**
      * prepared statement 사용 여부 설정
      * @param $state boolean
+     * @param $on_close boolean 참인 경우 최초 결과 요청시 statement close 처리 및 null 처리
      * @return AZSql
      */
-    protected function set_prepared($state, $close_on_complete = true) {
+    public function set_prepared($state, $on_close = true) {
       //
       $this->_is_prepared = $state;
-      $this->_is_prepared_close_on_complete = $close_on_complete;
+      $this->_statement_close_on_complete = $state ? $on_close : true;
       //
       $this->_compiled_query = null;
       //
@@ -576,11 +574,12 @@ namespace AZLib {
       //
       $this->_identity = false;
       $this->_is_transaction = false;
-      $this->_transaction_result;
-      $this->_action_tran_on_commit;
-      $this->_action_tran_on_rollback;
+      $this->_transaction_result = null;
+      $this->_action_tran_on_commit = null;
+      $this->_action_tran_on_rollback = null;
       $this->_is_stored_procedure = false;
       $this->_is_prepared = false;
+      $this->_statement_close_on_complete = true;
       //
       return $this;
     }
@@ -595,8 +594,8 @@ namespace AZLib {
       //
       $this->_is_transaction = true;
       //
-      if (isset($on_commit) && is_callable($on_commit)) $this->_action_tran_on_commit = $on_commit;
-      if (isset($on_rollback) && is_callable($on_rollback)) $this->_action_tran_on_rollback = $on_rollback;
+      if ($on_commit) $this->_action_tran_on_commit = $on_commit;
+      if ($on_rollback) $this->_action_tran_on_rollback = $on_rollback;
     }
 
     /**
@@ -615,11 +614,11 @@ namespace AZLib {
         $this->get_mysqli()->autocommit(true);
       }
       //
-      if ($is_success && isset($this->_action_tran_on_commit) && is_callable($this->_action_tran_on_commit)) {
-        call_user_func($this->_action_tran_on_commit);
+      if ($is_success && $_action_tran_on_commit) {
+        $_action_tran_on_commit();
       }
-      else if (!$is_success && isset($this->_action_tran_on_rollback) && is_callable($this->_action_tran_on_rollback)) {
-        call_user_func($this->_action_tran_on_rollback);
+      else if (!$is_success && $_action_tran_on_rollback) {
+        $_action_tran_on_commit();
       }
     }
 
@@ -678,10 +677,11 @@ namespace AZLib {
           }
           //
           $this->_statement->free_result();
-          if ($this->_is_prepared_close_on_complete) { // prepared statement 사용 후 statement close 처리
+          if ($this->_statement_close_on_complete) {
             $this->_statement->close();
             $this->_statement = null;
           }
+          // $this->_statement->close();
         }
       }
       else {
@@ -806,10 +806,11 @@ namespace AZLib {
           }
           //
           $this->_statement->free_result();
-          if ($this->_is_prepared_close_on_complete) { // prepared statement 사용 후 statement close 처리
+          if ($this->_statement_close_on_complete) {
             $this->_statement->close();
             $this->_statement = null;
           }
+          // $this->_statement->close();
         }
       }
       else {
@@ -971,10 +972,11 @@ namespace AZLib {
           }
           //
           $this->_statement->free_result();
-          if ($this->_is_prepared_close_on_complete) { // prepared statement 사용 후 statement close 처리
+          if ($this->_statement_close_on_complete) {
             $this->_statement->close();
             $this->_statement = null;
           }
+          // $this->_statement->close();
         }
       }
       else {
@@ -1127,10 +1129,11 @@ namespace AZLib {
           }
           //
           $this->_statement->free_result();
-          if ($this->_is_prepared_close_on_complete) { // prepared statement 사용 후 statement close 처리
+          if ($this->_statement_close_on_complete) {
             $this->_statement->close();
             $this->_statement = null;
           }
+          // $this->_statement->close();
         }
       }
       else {
@@ -1282,11 +1285,428 @@ namespace AZLib\AZSql {
     public $_VALUETYPE;
   }
 
+  /*
   class WhereData {
     public $_column;
     public $_value;
     public $_WHERETYPE;
     public $_VALUETYPE;
+  }
+  */
+
+  class Condition {
+    public $_column;
+    public $_value;
+    public $_WHERETYPE;
+    public $_VALUETYPE;
+    protected $_is_prepared = false;
+    protected $_db = null;
+
+    public function __construct(...$args) {
+      $cnt = count($args);
+      $column = $cnt > 0 ? $args[0] : null;
+      $value = $cnt > 1 ? $args[1] : null;
+      $where_type = \AZLib\AZSql\WHERETYPE::EQUAL;
+      $value_type = \AZLib\AZSql\VALUETYPE::VALUE;
+      //
+      switch ($cnt) {
+        case 2:
+          break;
+        case 3:
+          switch (gettype($args[2])) {
+            case 'string':
+              $where_type = $args[2];
+              break;
+            default:
+              $value_type = $args[2];
+              break;
+          }
+          break;
+        case 4:
+          $where_type = $args[2];
+          $value_type = $args[3];
+          break;
+        default:
+          throw new \Exception('arguemnt length invalid');
+          break;
+      }
+      //
+      $this->_column = $column;
+      $this->_value = $value;
+      $this->_WHERETYPE = $where_type;
+      $this->_VALUETYPE = $value_type;
+    }
+
+    public static function create(...$args) {
+      return new Condition(...$args);
+    }
+
+    public function set_db(&$db) {
+      $this->_db = $db;
+      return this;
+    }
+
+    public function set_prepared($state) {
+      $this->_is_prepared = $state;
+      return $this;
+    }
+
+    public function is_prepared() {
+      return $this->_is_prepared;
+    }
+
+    public function get_data(&$index) {
+      $index++;
+      $val_cnt = 1;
+      $query = null;
+      $params = null;
+      //
+      $condition = '=';
+      switch ($this->_WHERETYPE) {
+        case WHERETYPE::EQUAL:
+        case WHERETYPE::EQ:
+          $condition = '=';
+          break;
+        case WHERETYPE::NOT_EQUAL:
+        case WHERETYPE::NE:
+          $condition = '<>';
+          break;
+        case WHERETYPE::GREATER_THAN:
+        case WHERETYPE::GT:
+          $condition = '>';
+          break;
+        case WHERETYPE::GREATER_THAN_OR_EQUAL:
+        case WHERETYPE::GTE:
+          $condition = '>=';
+          break;
+        case WHERETYPE::LESS_THAN:
+        case WHERETYPE::LT:
+          $condition = '<';
+          break;
+        case WHERETYPE::LESS_THAN_OR_EQUAL:
+        case WHERETYPE::LTE:
+          $condition = '<=';
+          break;
+        case WHERETYPE::LIKE:
+          $condition = 'LIKE';
+          break;
+        case WHERETYPE::BETWEEN:
+          $condition = 'BETWEEN';
+          $val_cnt = 2;
+          break;
+        case WHERETYPE::IN:
+          $condition = 'IN';
+          $val_cnt = 3;
+          break;
+        case WHERETYPE::NOT_IN:
+        case WHERETYPE::NIN:
+          $condition = 'NOT IN';
+          $val_cnt = 3;
+          break;
+      }
+      $query = "{$this->_column} $condition ";
+      $col = str_replace('.', '___', $this->_column);
+      //
+      if ($this->is_prepared() && $this->_VALUETYPE ==  VALUETYPE::VALUE) {
+        // prepared statement 사용시
+        $params = array();
+        switch ($val_cnt) {
+          case 1:
+            $key = "@{$col}_where_{$index}";
+            array_push($params, array('key' => $key, 'value' => $this->_value));
+            $query .= "@{$col}_where_{$index}";
+            break;
+          case 2:
+            $jdx = 0;
+            foreach ($this->_value as &$val) {
+              $jdx++;
+              $key = "@{$col}_where_{$index}_between_{$jdx}";
+              array_push($params, array('key' => $key, 'value' => $val));
+              $query .= ($jdx > 1 ? ' AND ' : '').$key;
+            }
+            break;
+          case 3:
+            $query .= "(";
+            $jdx = 0;
+            foreach ($this->_value as &$val) {
+              $jdx++;
+              $key = "@{$col}_where_{$index}_in_{$jdx}";
+              array_push($params, array('key' => $key, 'value' => $val));
+              $query .= ($jdx > 1 ? ',' : '')."@{$col}_where_{$index}_in_{$jdx}";
+            }
+            $query .= ")";
+            break;
+        }
+      }
+      else {
+        // prepared statement 미사용시
+        switch ($val_cnt) {
+          case 1:
+            $q_mark = $this->get_qmark($this->_value);
+            //
+            if (!is_null($this->_db)) {
+              $query .= $this->get_mysqli()->escape_string($this->_value);
+            }
+            else {
+              $query .= "$q_mark{$this->_value}$q_mark";
+            }
+            break;
+          case 2:
+            $jdx = 0;
+            foreach ($this->_value as &$val) {
+              $q_mark = $this->get_qmark($val);
+              //
+              if (!is_null($this->_db)) {
+                $query .= ($jdx > 0 ? ' AND ' : '').$this->get_mysqli()->escape_string($this->_value);
+              }
+              else {
+                $query .= ($jdx > 0 ? ' AND ' : '')."$q_mark{$val}$q_mark";
+              }
+              $jdx++;
+            }
+            break;
+          case 3:
+            $query .= "(";
+            $jdx = 0;
+            foreach ($this->_value as &$val) {
+              $q_mark = $this->get_qmark($val);
+              // 
+              if (!is_null($this->_db)) {
+                $query .= ($jdx > 0 ? ',' : '').$this->get_mysqli()->escape_string($this->_value);
+              }
+              else {
+                $query .= ($jdx > 0 ? ',' : '')."$q_mark{$val}$q_mark";
+              }
+              $jdx++;
+            }
+            $query .= ")";
+            break;
+        }
+      }
+      //
+      return array('query' => $query, 'parameters' => $params);
+    }
+
+    private function get_qmark($val) {
+      $rtn_val = '';
+      switch (gettype($val)) {
+        case 'integer':
+        case 'float':
+        case 'double':
+          $rtn_val = '';
+          break;
+        default:
+          $rtn_val = "'";
+          break;
+      }
+      return $rtn_val;
+    }
+  }
+
+  class CAnd {
+    private $_is_prepared = false;
+    private $_conditions;
+    public function __construct(...$args) {
+      //
+      $this->_conditions = array();
+      //
+      foreach ($args as &$arg) {
+        if (
+          get_class($arg) != 'AZLib\AZSql\Condition' &&
+          get_class($arg) != 'AZLib\AZSql\CAnd' &&
+          get_class($arg) != 'AZLib\AZSql\COr'
+        ) {
+          continue;
+        }
+        array_push($this->_conditions, $arg);
+      }
+    }
+
+    public static function create(...$args) {
+      return new CAnd(...$args);
+    }
+    
+    public function __call($name, $args) {
+      switch ($name) {
+        case 'add':
+          if (count($args) == 1) {
+            return call_user_func_array(array($this, 'add_condition'), $args);
+          }
+          if (count($args) == 2) {
+            array_push($args, null, null);
+          }
+          else if (count($args) == 3) {
+            switch (gettype($args[2])) {
+              case 'string':
+                array_push($args, null);
+                break;
+              default:
+                $args[3] = $args[2];
+                $args[2] = null;
+                break;
+            }
+          }
+          return call_user_func_array(array($this, 'add'), $args);
+      }
+    }
+
+    public function set_prepared($state) {
+      $this->_is_prepared = $state;
+      return $this;
+    }
+
+    public function is_prepared() {
+      return $this->_is_prepared;
+    }
+
+    protected function add_condition($condition) {
+      // 전달값 확인
+      if (!in_array(get_class($condition), ['AZLib\AZSql\Condition', 'AZLib\AZSql\CAnd', 'AZLib\AZSql\COr'])) {
+        throw new \Exception('invalid argument');
+      }
+      //
+      if (is_null($this->_conditions)) $this->_conditions = array();
+      array_push($this->_conditions, $condition);
+      //
+      return $this;
+    }
+
+    protected function add(string $column, $value, $WHERETYPE = null, $VALUETYPE = null) {
+      if (is_null($WHERETYPE)) $WHERETYPE = WHERETYPE::EQUAL;
+      if (is_null($VALUETYPE)) $VALUETYPE = VALUETYPE::VALUE;
+      //
+      $set = new Condition($column, $value, $WHERETYPE, $VALUETYPE);
+      //
+      if (is_null($this->_conditions)) $this->_conditions = array();
+      array_push($this->_conditions, $set);
+      //
+      return $this;
+    }
+
+    public function get_data(&$index) {
+      $query = '(';
+      $params = null;
+      $idx = 0;
+      // echo "res.{$_conditions}:".json_encode($_conditions)."<br />";
+      foreach ($this->_conditions as &$con) {
+        $res = $con->set_prepared($this->is_prepared())->get_data($index);
+        // echo "res.{$index}:".json_encode($res)."<br />";
+        $query .= PHP_EOL.($idx > 0 ? ' AND ' : ' ').$res['query'];
+        if (!is_null($res['parameters']) && is_array($res['parameters'])) {
+          if (is_null($params)) {
+            $params = array();
+          }
+          array_push($params, ...$res['parameters']);
+        }
+        $idx++;
+      }
+      $query .= PHP_EOL.')';
+      //
+      return array('query' => $query, 'parameters' => $params);
+    }
+  }
+
+  class COr {
+    private $_is_prepared = false;
+    private $_conditions;
+    public function __construct(...$args) {
+      //
+      $this->_conditions = array();
+      //
+      foreach ($args as &$arg) {
+        if (
+          get_class($arg) != 'AZLib\AZSql\Condition' &&
+          get_class($arg) != 'AZLib\AZSql\CAnd' &&
+          get_class($arg) != 'AZLib\AZSql\COr'
+        ) {
+          continue;
+        }
+        array_push($this->_conditions, $arg);
+      }
+    }
+
+    public static function create(...$args) {
+      return new COr(...$args);
+    }
+    
+    public function __call($name, $args) {
+      switch ($name) {
+        case 'add':
+          if (count($args) == 1) {
+            return call_user_func_array(array($this, 'add_condition'), $args);
+          }
+          if (count($args) == 2) {
+            array_push($args, null, null);
+          }
+          else if (count($args) == 3) {
+            switch (gettype($args[2])) {
+              case 'string':
+                array_push($args, null);
+                break;
+              default:
+                $args[3] = $args[2];
+                $args[2] = null;
+                break;
+            }
+          }
+          return call_user_func_array(array($this, 'add'), $args);
+      }
+    }
+
+    public function set_prepared($state) {
+      $this->_is_prepared = $state;
+      return $this;
+    }
+
+    public function is_prepared() {
+      return $this->_is_prepared;
+    }
+
+    protected function add_condition($condition) {
+      // 전달값 확인
+      if (!in_array(get_class($condition), ['AZLib\AZSql\Condition', 'AZLib\AZSql\CAnd', 'AZLib\AZSql\COr'])) {
+        throw new \Exception('invalid argument');
+      }
+      //
+      if (is_null($this->_conditions)) $this->_conditions = array();
+      array_push($this->_conditions, $condition);
+      //
+      return $this;
+    }
+
+    protected function add(string $column, $value, $WHERETYPE = null, $VALUETYPE = null) {
+      if (is_null($WHERETYPE)) $WHERETYPE = WHERETYPE::EQUAL;
+      if (is_null($VALUETYPE)) $VALUETYPE = VALUETYPE::VALUE;
+      //
+      $set = new Condition($column, $value, $WHERETYPE, $VALUETYPE);
+      //
+      if (is_null($this->_conditions)) $this->_conditions = array();
+      array_push($this->_conditions, $set);
+      //
+      return $this;
+    }
+
+    public function get_data(&$index) {
+      $query = '(';
+      $params = null;
+      $idx = 0;
+      // echo "res.{$_conditions}:".json_encode($_conditions)."<br />";
+      foreach ($this->_conditions as &$con) {
+        $res = $con->set_prepared($this->is_prepared())->get_data($index);
+        // echo "res.{$index}:".json_encode($res)."<br />";
+        $query .= PHP_EOL.($idx > 0 ? ' OR ' : ' ').$res['query'];
+        if (!is_null($res['parameters']) && is_array($res['parameters'])) {
+          if (is_null($params)) {
+            $params = array();
+          }
+          array_push($params, ...$res['parameters']);
+        }
+        $idx++;
+      }
+      $query .= PHP_EOL.')';
+      //
+      return array('query' => $query, 'parameters' => $params);
+    }
   }
 
   class BQuery {
@@ -1310,6 +1730,9 @@ namespace AZLib\AZSql {
           }
           return call_user_func_array(array($this, 'set'), $args);
         case 'where':
+          if (count($args) == 1) {
+            return call_user_func_array(array($this, 'where_condition'), $args);
+          }
           if (count($args) == 2) {
             array_push($args, null, null);
           }
@@ -1368,15 +1791,30 @@ namespace AZLib\AZSql {
       return $this;
     }
 
+    protected function where_condition($condition) {
+      // 전달값 확인
+      if (!in_array(get_class($condition), ['AZLib\AZSql\Condition', 'AZLib\AZSql\CAnd', 'AZLib\AZSql\COr'])) {
+        throw new \Exception('invalid argument');
+      }
+      //
+      if (is_null($this->_where_datas)) $this->_where_datas = array();
+      array_push($this->_where_datas, $condition);
+      //
+      return $this;
+    }
+
     protected function where(string $column, $value, $WHERETYPE = null, $VALUETYPE = null) {
       if (is_null($WHERETYPE)) $WHERETYPE = WHERETYPE::EQUAL;
       if (is_null($VALUETYPE)) $VALUETYPE = VALUETYPE::VALUE;
       //
+      /*
       $set = new WhereData();
       $set->_column = $column;
       $set->_value = $value;
       $set->_WHERETYPE = $WHERETYPE;
       $set->_VALUETYPE = $VALUETYPE;
+      */
+      $set = new Condition($column, $value, $WHERETYPE, $VALUETYPE);
       //
       if (is_null($this->_where_datas)) $this->_where_datas = array();
       array_push($this->_where_datas, $set);
@@ -1401,7 +1839,7 @@ namespace AZLib\AZSql {
               // prepared statement 사용시
               if (is_null($params)) $params = AZData::create();
               //
-              $key = '@'.(str_replace('.', '___', $set->_column)).'_set_'.($idx + 1);
+              $key = "@{$set->_column}_set_".($idx + 1);
               $params->add($key, $set->_value);
               $val_str .= PHP_EOL.($idx > 0 ? ' ,' : ' ').$key;
             }
@@ -1428,8 +1866,7 @@ namespace AZLib\AZSql {
                 // prepared statement 사용시
                 if (is_null($params)) $params = AZData::create();
                 //
-                // $key = "@__set_{$idx}_{$set->_column}";
-                $key = '@'.(str_replace('.', '___', $set->_column)).'_set_'.($idx + 1);
+                $key = "@{$set->_column}_set_".($idx + 1);
                 $params->add($key, $set->_value);
                 $query .= ($idx > 0 ? ',' : '').PHP_EOL." {$set->_column} = $key";
               }
@@ -1449,6 +1886,22 @@ namespace AZLib\AZSql {
           //
           if (!is_null($this->_where_datas)) {
             $query .= PHP_EOL."WHERE";
+            $idx = 0;
+            $conjuntion = false;
+            foreach ($this->_where_datas as &$where) {
+              $data = $where->set_prepared($this->is_prepared())->get_data($idx);
+              $query .= PHP_EOL.($conjuntion ? ' AND ' : ' ').$data['query'];
+              $conjuntion = true;
+              // prepared statement 사용시
+              if (!is_null($data['parameters'])) {
+                if (is_null($params)) $params = AZData::create();
+                foreach ($data['parameters'] as $parameter) {
+                  $params->add($parameter['key'], $parameter['value']);
+                }
+              }
+              // echo "data:".json_encode($data).PHP_EOL;
+            }
+            /*
             $idx = 0;
             foreach ($this->_where_datas as $where) {
               $val_cnt = 1;
@@ -1502,17 +1955,14 @@ namespace AZLib\AZSql {
                 //
                 switch ($val_cnt) {
                   case 1:
-                    //$key = "@__where_{$idx}_{$where->_column}";
-                    $key = '@'.(str_replace('.', '___', $where->_column)).'_where_'.($idx + 1);
+                    $key = "@{$where->_column}_where_".($idx + 1);
                     $params->add($key, $where->_value);
                     $query .= $key;
                     break;
                   case 2:
                     $keys = array(
-                      // "@__where_{$idx}_{$where->_column}_btw_1",
-                      // "@__where_{$idx}_{$where->_column}_btw_2"
-                      '@'.(str_replace('.', '___', $where->_column)).'_where_'.($idx + 1).'_between_1',
-                      '@'.(str_replace('.', '___', $where->_column)).'_where_'.($idx + 1).'_between_2'
+                      "@{$where->_column}_where_".($idx + 1)."_between_1",
+                      "@{$where->_column}_where_".($idx + 1)."_between_2"
                     );
                     $params
                       ->add($keys[0], $where->_value[0])
@@ -1524,8 +1974,7 @@ namespace AZLib\AZSql {
                     $jdx = 0;
                     foreach ($where->_value as $val) {
                       //
-                      // $key = "@__where_{$idx}_{$where->_column}_in_$jdx";
-                      $key = '@'.(str_replace('.', '___', $where->_column)).'_where_'.($idx + 1).'_in_'.($jdx + 1);
+                      $key = "@{$where->_column}_where_".($idx + 1)."_in_$jdx";
                       $params->add($key, $val);
                       //
                       $query .= ($jdx > 0 ? ',' : '').$key;
@@ -1572,6 +2021,7 @@ namespace AZLib\AZSql {
               }
               $idx++;
             }
+            */
           }
           return array('query' => $query, 'parameters' => $params);
       }
