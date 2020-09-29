@@ -1343,7 +1343,28 @@ namespace AZLib\AZSql {
 
     public function set_db(&$db) {
       $this->_db = $db;
-      return this;
+      return $this;
+    }
+
+    /**
+     * 연결 객체에 대한 class 명을 통해 mysqli 여부 반환, CI에서 사용을 위한 conn_id 확인
+     * @return boolean
+     */
+    protected function is_mysqli() {
+      if (!isset($this->_db)) {
+        throw new \Exception('database object is not defined');
+      }
+      if (isset($this->_db->conn_id)) {
+        return get_class($this->_db->conn_id) == 'mysqli';
+      }
+      return get_class($this->_db) == 'mysqli';
+    }
+    
+    /**
+     * mysqli 객체를 반환
+     */
+    protected function get_mysqli() {
+      return $this->is_mysqli() ? (isset($this->_db->conn_id) ? $this->_db->conn_id : $this->_db ) : null;
     }
 
     public function set_prepared($state) {
@@ -1445,7 +1466,7 @@ namespace AZLib\AZSql {
             $q_mark = $this->get_qmark($this->_value);
             //
             if (!is_null($this->_db)) {
-              $query .= $this->get_mysqli()->escape_string($this->_value);
+              $query .= $q_mark.$this->get_mysqli()->escape_string($this->_value).$q_mark;
             }
             else {
               $query .= "$q_mark{$this->_value}$q_mark";
@@ -1457,7 +1478,7 @@ namespace AZLib\AZSql {
               $q_mark = $this->get_qmark($val);
               //
               if (!is_null($this->_db)) {
-                $query .= ($jdx > 0 ? ' AND ' : '').$this->get_mysqli()->escape_string($this->_value);
+                $query .= ($jdx > 0 ? ' AND ' : '').$q_mark.$this->get_mysqli()->escape_string($val).$q_mark;
               }
               else {
                 $query .= ($jdx > 0 ? ' AND ' : '')."$q_mark{$val}$q_mark";
@@ -1472,7 +1493,7 @@ namespace AZLib\AZSql {
               $q_mark = $this->get_qmark($val);
               // 
               if (!is_null($this->_db)) {
-                $query .= ($jdx > 0 ? ',' : '').$this->get_mysqli()->escape_string($this->_value);
+                $query .= ($jdx > 0 ? ',' : '').$q_mark.$this->get_mysqli()->escape_string($val).$q_mark;
               }
               else {
                 $query .= ($jdx > 0 ? ',' : '')."$q_mark{$val}$q_mark";
@@ -1504,6 +1525,7 @@ namespace AZLib\AZSql {
   }
 
   class CAnd {
+    protected $_db = null;
     private $_is_prepared = false;
     private $_conditions;
     public function __construct(...$args) {
@@ -1550,6 +1572,11 @@ namespace AZLib\AZSql {
       }
     }
 
+    public function set_db(&$db) {
+      $this->_db = $db;
+      return $this;
+    }
+
     public function set_prepared($state) {
       $this->_is_prepared = $state;
       return $this;
@@ -1589,7 +1616,7 @@ namespace AZLib\AZSql {
       $idx = 0;
       // echo "res.{$_conditions}:".json_encode($_conditions)."<br />";
       foreach ($this->_conditions as &$con) {
-        $res = $con->set_prepared($this->is_prepared())->get_data($index);
+        $res = $con->set_db($this->_db)->set_prepared($this->is_prepared())->get_data($index);
         // echo "res.{$index}:".json_encode($res)."<br />";
         $query .= PHP_EOL.($idx > 0 ? ' AND ' : ' ').$res['query'];
         if (!is_null($res['parameters']) && is_array($res['parameters'])) {
@@ -1607,6 +1634,7 @@ namespace AZLib\AZSql {
   }
 
   class COr {
+    protected $_db = null;
     private $_is_prepared = false;
     private $_conditions;
     public function __construct(...$args) {
@@ -1653,6 +1681,11 @@ namespace AZLib\AZSql {
       }
     }
 
+    public function set_db(&$db) {
+      $this->_db = $db;
+      return $this;
+    }
+
     public function set_prepared($state) {
       $this->_is_prepared = $state;
       return $this;
@@ -1692,7 +1725,7 @@ namespace AZLib\AZSql {
       $idx = 0;
       // echo "res.{$_conditions}:".json_encode($_conditions)."<br />";
       foreach ($this->_conditions as &$con) {
-        $res = $con->set_prepared($this->is_prepared())->get_data($index);
+        $res = $con->set_db($this->_db)->set_prepared($this->is_prepared())->get_data($index);
         // echo "res.{$index}:".json_encode($res)."<br />";
         $query .= PHP_EOL.($idx > 0 ? ' OR ' : ' ').$res['query'];
         if (!is_null($res['parameters']) && is_array($res['parameters'])) {
@@ -1714,6 +1747,7 @@ namespace AZLib\AZSql {
     private $_set_datas; // array
     private $_where_datas; // array
     private $_is_prepared = false;
+    private $_db;
     public function __construct(string $table_name) {
       $this->_table_name = $table_name;
     }
@@ -1749,6 +1783,32 @@ namespace AZLib\AZSql {
           }
           return call_user_func_array(array($this, 'where'), $args);
       }
+    }
+
+    public function set_db(&$db) {
+      $this->_db = $db;
+      return $this;
+    }
+
+    /**
+     * 연결 객체에 대한 class 명을 통해 mysqli 여부 반환, CI에서 사용을 위한 conn_id 확인
+     * @return boolean
+     */
+    protected function is_mysqli() {
+      if (!isset($this->_db)) {
+        throw new \Exception('database object is not defined');
+      }
+      if (isset($this->_db->conn_id)) {
+        return get_class($this->_db->conn_id) == 'mysqli';
+      }
+      return get_class($this->_db) == 'mysqli';
+    }
+    
+    /**
+     * mysqli 객체를 반환
+     */
+    protected function get_mysqli() {
+      return $this->is_mysqli() ? (isset($this->_db->conn_id) ? $this->_db->conn_id : $this->_db ) : null;
     }
 
     public function set_prepared($state) {
@@ -1849,7 +1909,14 @@ namespace AZLib\AZSql {
               if ($set->_VALUETYPE == VALUETYPE::VALUE) {
                 $q_mark = $this->get_qmark($set->_value);
               }
-              $val_str .= PHP_EOL.($idx > 0 ? ' ,' : ' ')."$q_mark{$set->_value}$q_mark";
+              //
+              if (!is_null($this->_db)) {
+                // $query .= $q_mark.$this->get_mysqli()->escape_string($this->_value).$q_mark;
+                $val_str .= PHP_EOL.($idx > 0 ? ' ,' : ' ').$q_mark.$this->get_mysqli()->escape_string($set->_value).$q_mark;
+              }
+              else {
+                $val_str .= PHP_EOL.($idx > 0 ? ' ,' : ' ')."$q_mark{$set->_value}$q_mark";
+              }
             }
             $idx++;
           }
@@ -1889,7 +1956,7 @@ namespace AZLib\AZSql {
             $idx = 0;
             $conjuntion = false;
             foreach ($this->_where_datas as &$where) {
-              $data = $where->set_prepared($this->is_prepared())->get_data($idx);
+              $data = $where->set_db($this->_db)->set_prepared($this->is_prepared())->get_data($idx);
               $query .= PHP_EOL.($conjuntion ? ' AND ' : ' ').$data['query'];
               $conjuntion = true;
               // prepared statement 사용시
