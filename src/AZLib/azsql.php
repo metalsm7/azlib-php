@@ -1279,6 +1279,13 @@ namespace AZLib\AZSql {
     const SELECT = 4;
   }
 
+  class JOIN {
+    const INNER = 'inner';
+    const LEFT = 'left';
+    const RIGHT = 'right';
+    const CROSS = 'cross';
+  }
+
   class SetData {
     public $_column;
     public $_value;
@@ -1293,6 +1300,35 @@ namespace AZLib\AZSql {
     public $_VALUETYPE;
   }
   */
+
+  class TableData {
+    private $_target;
+    private $_join;
+    private $_on;
+
+    public function __construct(...$args) {
+
+    }
+
+    public static function create(): TableData {
+      return new TableData();
+    }
+
+    public function set_target(string $target): TableData {
+      $this->_target = $target;
+      return $this;
+    }
+
+    public function set_join(JOIN $join): TableData {
+      $this->_join = $join;
+      return $this;
+    }
+
+    public function set_on(Condition $condition): TableData {
+      $this->_on = $condition;
+      return $this;
+    }
+  }
 
   class Condition {
     public $_column;
