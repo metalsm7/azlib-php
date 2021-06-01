@@ -22,7 +22,7 @@
   },
   "autoload": {
     "psr-4": {
-      "MParang\\AZLib\\": "src/AZLib/"
+      "MParang\\AZLib\\": "src"
     }
   }
 }

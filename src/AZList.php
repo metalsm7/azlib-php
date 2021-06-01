@@ -2,8 +2,8 @@
 /**
  * @file
  */
-namespace AZLib;
-use AZLib\{AZData};
+namespace MParang\AZLib;
+use MParang\AZLib\{AZData};
 class AZList implements \Iterator, \JsonSerializable {
   // protected $CI;
   private $_key = 0;

@@ -2,8 +2,8 @@
 /**
  * @file
  */
-namespace AZLib {
-  use AZLib\{AZData, AZList};
+namespace MParang\AZLib {
+  use MParang\AZLib\{AZData, AZList};
   class AZSql {
     //
     private $_db; // string

@@ -2,10 +2,10 @@
 /**
  * @file
  */
-require_once __DIR__.'/../src/AZLib/azdata.php';
-require_once __DIR__.'/../src/AZLib/azlist.php';
-require_once __DIR__.'/../src/AZLib/azsql.php';
-use AZLib\{AZData, AZList, AZSql};
+require_once __DIR__.'/../src/azdata.php';
+require_once __DIR__.'/../src/azlist.php';
+require_once __DIR__.'/../src/azsql.php';
+use \MParang\AZLib\{AZData, AZList, AZSql};
 
 $bql = AZSql\BQuery::create('table')
   ->set_prepared(true)
