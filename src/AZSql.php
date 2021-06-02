@@ -70,14 +70,18 @@ namespace MParang\AZLib {
      */
     private function param_replacer(string $query, string $key, $value) {
       if (is_null($query) || !is_null($query) && strlen($query) < 1) throw new \Exception('query is empty');
-      $query = preg_replace("/{$key}$/", $this->get_mysqli()->escape_string($value), $query);
-      $query = preg_replace("/{$key}\r\n/", $this->get_mysqli()->escape_string($value)."\r\n", $query);
-      $query = preg_replace("/{$key}\n/", $this->get_mysqli()->escape_string($value)."\n", $query);
-      $query = preg_replace("/{$key}\s/", $this->get_mysqli()->escape_string($value)." ", $query);
-      $query = preg_replace("/{$key}\t/", $this->get_mysqli()->escape_string($value)."\t", $query);
-      $query = preg_replace("/{$key},/", $this->get_mysqli()->escape_string($value).",", $query);
-      $query = preg_replace("/{$key}\)/", $this->get_mysqli()->escape_string($value).")", $query);
-      $query = preg_replace("/{$key};/", $this->get_mysqli()->escape_string($value).";", $query);
+      $escaped_string = $this->get_mysqli()->escape_string($value);
+      if (is_string($value)) {
+        $escaped_string = "'".$escaped_string."'";
+      }
+      $query = preg_replace("/{$key}$/", $escaped_string, $query);
+      $query = preg_replace("/{$key}\r\n/", $escaped_string."\r\n", $query);
+      $query = preg_replace("/{$key}\n/", $escaped_string."\n", $query);
+      $query = preg_replace("/{$key}\s/", $escaped_string." ", $query);
+      $query = preg_replace("/{$key}\t/", $escaped_string."\t", $query);
+      $query = preg_replace("/{$key},/", $escaped_string.",", $query);
+      $query = preg_replace("/{$key}\)/", $escaped_string.")", $query);
+      $query = preg_replace("/{$key};/", $escaped_string.";", $query);
       return $query;
     }
 
@@ -667,7 +671,7 @@ namespace MParang\AZLib {
             $result->free_result();
           }
           //
-          $rtn_val = $identity ? $this->_statement->insert_id() : $this->_statement->affected_rows();
+          $rtn_val = $identity ? $this->_statement->insert_id() : $this->_statement->affected_rows;
           //
           // $idx = 0;
           while ($this->_statement->more_results() && $this->_statement->next_result()) {
@@ -696,7 +700,7 @@ namespace MParang\AZLib {
         if ($result && $this->get_mysqli()->error && $this->get_mysqli()->errno != 0) {
           throw new \Exception($this->get_mysqli()->error, $this->get_mysqli()->errno);
         }
-        $rtn_val = $identity ? $this->get_mysqli()->insert_id() : $this->get_mysqli()->affected_rows();
+        $rtn_val = $identity ? $this->get_mysqli()->insert_id() : $this->get_mysqli()->affected_rows;
         //
         if (gettype($result) == 'object') {
           $this->free_results($result);
