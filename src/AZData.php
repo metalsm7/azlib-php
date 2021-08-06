@@ -8,8 +8,8 @@ use MParang\AZLib\{AZList};
 class AZData implements \Iterator, \JsonSerializable, \ArrayAccess {
   // protected $CI;
   private $_key = 0;
-  private $_keys = null;
-  private $_data = null;
+  private $_keys = array();
+  private $_data = array();
   public function __construct($json = null) {
     // $this->CI =& get_instance();
     //
